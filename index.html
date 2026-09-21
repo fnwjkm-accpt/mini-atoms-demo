@@ -85,7 +85,7 @@ iframe{width:100%;height:600px;border:none;background:#fff}
 <button data-tab="code">代码</button>
 <div class="spacer"></div>
 <button class="btn-secondary" id="copyBtn">复制代码</button>
-<button class="btn-secondary" id="downloadBtn">下载 HTML</button>
+<button class="btn-secondary" id="downloadBtn">下载 HTML</button> <button class="btn-secondary" id="shareBtn">复制分享</button>
 </div>
 <div class="preview-wrap">
 <div id="previewPane"><iframe id="previewFrame" sandbox="allow-scripts"></iframe></div>
@@ -135,7 +135,7 @@ input{padding:8px;border:1px solid #ddd;border-radius:6px;flex:1}
 .row{display:flex;gap:8px}
 </style></head><body><div class="card"><h2>待办清单</h2><div class="row"><input id="inp" placeholder="输入待办..."><button onclick="add()">添加</button></div><ul id="list"></ul><p id="count"></p></div>
 <script>
-function add(){const v=document.getElementById('inp').value.trim(); if(!v) return; const li=document.createElement('li'); li.innerHTML='<input type="checkbox" onclick="this.parentNode.classList.toggle(\'done\');update()"> <span>'+v.replace(/</g,'&lt;')+'</span> <button onclick="this.parentNode.remove();update()" style="margin-left:auto">删</button>'; document.getElementById('list').appendChild(li); document.getElementById('inp').value=''; update();}
+function add(){const v=document.getElementById('inp').value.trim(); if(!v) return; const li=document.createElement('li'); li.innerHTML='<input type="checkbox" onclick="this.parentNode.classList.toggle(`done`);update()"> <span>'+v.replace(/</g,'&lt;')+'</span> <button onclick="this.parentNode.remove();update()" style="margin-left:auto">删</button>'; document.getElementById('list').appendChild(li); document.getElementById('inp').value=''; update();}
 function update(){document.getElementById('count').textContent='共 '+document.querySelectorAll('#list li').length+' 项';}
 <\/script></body></html>`;
 }
@@ -206,7 +206,7 @@ list.addEventListener('click',e=>{
 const b=e.target.closest('button'); if(!b) return;
 const i=parseInt(b.dataset.i); const a=b.dataset.a;
 if(a==='preview'){currentIdx=i; render();}
-if(a==='rollback'){const v=versions[i]; versions.push({html:v.html,memo:'回滚到 v'+(i+1),time:new Date().toLocaleString(),title:v.title}); currentIdx=versions.length-1; render();}
+if(a==='rollback'){const v=versions[i]; versions.push({html:v.html,memo:'回滚到 v'+(i+1),time:new Date().toLocaleString(),title:v.title,prompt:''}); currentIdx=versions.length-1; render();}
 if(a==='del'){ if(!confirm('删除这个版本？')) return; versions.splice(i,1); if(currentIdx>=versions.length) currentIdx=versions.length-1; render();}
 });
 
@@ -225,7 +225,7 @@ if(s<steps.length){prog.textContent=steps[s];}
 else{
 clearInterval(iv);
 const r=mockGenerate(p);
-versions.push({html:r.html,memo:'生成 '+r.title+'：'+p.slice(0,24),time:new Date().toLocaleString(),title:r.title});
+versions.push({html:r.html,memo:'生成 '+r.title+'：'+p.slice(0,24),time:new Date().toLocaleString(),title:r.title,prompt:p});
 currentIdx=versions.length-1;
 prog.style.display='none';
 document.getElementById('generateBtn').disabled=false;
@@ -238,7 +238,7 @@ function doFollow(q){
 if(currentIdx<0) return;
 const cur=versions[currentIdx].html;
 const patched=applyFollowUp(cur,q);
-versions.push({html:patched,memo:'追问：'+q.slice(0,24),time:new Date().toLocaleString(),title:versions[currentIdx].title});
+versions.push({html:patched,memo:'追问：'+q.slice(0,24),time:new Date().toLocaleString(),title:versions[currentIdx].title,prompt:q});
 currentIdx=versions.length-1;
 document.getElementById('followInput').value='';
 render();
@@ -265,6 +265,15 @@ document.getElementById('downloadBtn').addEventListener('click',()=>{
 if(currentIdx<0){alert('先生成一个网页');return;}
 const blob=new Blob([versions[currentIdx].html],{type:'text/html'});
 const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='mini-atoms-app.html'; a.click();
+});
+document.getElementById('shareBtn').addEventListener('click',async()=>{
+if(currentIdx<0){alert('先生成一个网页');return;}
+const prompts=versions.map(v=>v.prompt||'').filter(Boolean);
+if(!prompts.length){alert('没有可分享的内容');return;}
+let share='【Mini-Atoms 分享】\n原始需求：'+prompts[0]+'\n';
+prompts.slice(1).forEach((q,idx)=>{share+='追问'+(idx+1)+'：'+q+'\n';});
+share+='---\n在 Mini-Atoms 粘贴以上 prompt 即可复现';
+try{await navigator.clipboard.writeText(share); alert('分享文案已复制，发给朋友粘贴即可复现');}catch(e){alert('复制失败，请手动复制');}
 });
 
 load(); render();
