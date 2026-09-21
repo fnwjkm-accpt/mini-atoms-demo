@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mini-Atoms 一句话生成网页</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;background:#f6f7f9;color:#1f2430}
+header{background:#fff;border-bottom:1px solid #e5e7eb;padding:16px 24px;position:sticky;top:0;z-index:10}
+header h1{margin:0;font-size:20px}header p{margin:4px 0 0;color:#6b7280;font-size:13px}
+.layout{display:grid;grid-template-columns:380px 1fr;gap:16px;padding:16px;max-width:1280px;margin:0 auto}
+.card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:16px;margin-bottom:16px}
+.card h3{margin:0 0 12px;font-size:15px}
+textarea,input{width:100%;border:1px solid #d1d5db;border-radius:8px;padding:10px;font-size:14px}
+textarea{min-height:80px;resize:vertical}
+.btn{background:#111827;color:#fff;border:none;border-radius:8px;padding:10px 16px;font-size:14px;cursor:pointer}
+.btn:disabled{background:#9ca3af;cursor:not-allowed}
+.btn-secondary{background:#f3f4f6;color:#111827;border:1px solid #e5e7eb}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+.chip{background:#eef2ff;border:1px solid #c7d2fe;color:#3730a3;border-radius:999px;padding:6px 12px;font-size:13px;cursor:pointer}
+.chip:disabled{opacity:.5;cursor:not-allowed}
+.version{border:1px solid #e5e7eb;border-radius:10px;padding:12px;margin-bottom:10px}
+.version.current{border-color:#111827}
+.version .meta{color:#6b7280;font-size:12px;margin:6px 0}
+.version .actions{display:flex;gap:8px;margin-top:8px}
+.version .actions button{background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:6px 10px;font-size:13px;cursor:pointer}
+.badge{display:inline-block;background:#111827;color:#fff;border-radius:6px;padding:2px 8px;font-size:12px;margin-right:6px}
+.badge-green{background:#d1fae5;color:#065f46}
+.tabs{display:flex;gap:8px;align-items:center;background:#fff;border:1px solid #e5e7eb;border-radius:12px 12px 0 0;padding:10px 12px}
+.tabs button{border:1px solid #e5e7eb;background:#f9fafb;border-radius:8px;padding:8px 14px;cursor:pointer}
+.tabs button.active{background:#111827;color:#fff;border-color:#111827}
+.spacer{flex:1}
+.preview-wrap{background:#fff;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px;min-height:600px;overflow:hidden}
+iframe{width:100%;height:600px;border:none;background:#fff}
+#codePane pre{margin:0;padding:16px;overflow:auto;max-height:600px;background:#0f172a;color:#e2e8f0;border-radius:0 0 12px 12px;font-size:13px}
+.progress{margin-top:10px;font-size:13px;color:#4b5563}
+.hint{font-size:12px;color:#6b7280}
+@media(max-width:900px){.layout{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+<h1>Mini-Atoms 一句话生成网页</h1>
+<p>一句话生成可交互小网页 · 笔试 Demo · 数据持久化 + 一键导出</p>
+</header>
+<main class="layout">
+<section>
+<div class="card">
+<h3>1. 描述你的想法</h3>
+<textarea id="promptInput" placeholder="例如：做一个番茄钟，25分钟专注+5分钟休息"></textarea>
+<div class="chips">
+<button class="chip" data-example="做一个番茄钟，25分钟专注+5分钟休息">番茄钟</button>
+<button class="chip" data-example="做一个待办清单，可增删勾选">待办清单</button>
+<button class="chip" data-example="做一张个人名片页，带联系按钮">个人名片</button>
+</div>
+<button class="btn" id="generateBtn" style="width:100%">生成网页</button>
+<div class="progress" id="progress" style="display:none"></div>
+</div>
+
+<div class="card">
+<h3>历史版本 <span id="versionCount"></span></h3>
+<div id="historyList"><p class="hint">还没有版本。在上方输入一句话并点击「生成网页」。</p></div>
+</div>
+
+<div class="card">
+<h3>追问修改</h3>
+<p class="hint">点下面快捷方式，或自己描述想要的调整</p>
+<div class="chips" id="quickChips">
+<button class="chip" data-q="换个配色">换个配色</button>
+<button class="chip" data-q="深色模式">深色模式</button>
+<button class="chip" data-q="加点动画">加点动画</button>
+<button class="chip" data-q="标题更吸引人">标题更吸引人</button>
+</div>
+<div style="display:flex;gap:8px">
+<input id="followInput" placeholder="如：把按钮改成红色" />
+<button class="btn" id="followBtn">发送</button>
+</div>
+<p class="hint" id="followHint">先生成一个网页，再对它追问修改</p>
+</div>
+</section>
+
+<section>
+<div class="tabs">
+<button data-tab="preview" class="active">预览</button>
+<button data-tab="code">代码</button>
+<div class="spacer"></div>
+<button class="btn-secondary" id="copyBtn">复制代码</button>
+<button class="btn-secondary" id="downloadBtn">下载 HTML</button>
+</div>
+<div class="preview-wrap">
+<div id="previewPane"><iframe id="previewFrame" sandbox="allow-scripts"></iframe></div>
+<div id="codePane" style="display:none"><pre><code id="codeBlock"></code></pre></div>
+</div>
+<p class="hint" style="padding:0 4px">右侧为沙盒实时预览，生成的应用可直接交互。数据保存在浏览器本地，刷新不丢。</p>
+</section>
+</main>
+
+<script>
+const LS_KEY='mini-atoms-v1';
+let versions=[]; let currentIdx=-1;
+
+function save(){ localStorage.setItem(LS_KEY, JSON.stringify({versions, currentIdx})); }
+function load(){ try{ const d=JSON.parse(localStorage.getItem(LS_KEY)); if(d){versions=d.versions||[]; currentIdx=d.currentIdx??-1;} }catch(e){} }
+
+function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function pomodoroHTML(){
+return `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>
+body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#fef3c7;margin:0}
+.card{background:#fff;padding:32px;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.1);text-align:center}
+.time{font-size:64px;font-weight:800;margin:16px 0}
+button{margin:6px;padding:10px 18px;border:none;border-radius:8px;background:#111827;color:#fff;cursor:pointer}
+button.secondary{background:#e5e7eb;color:#111827}
+</style></head><body><div class="card"><h2>番茄钟</h2><div class="time" id="t">25:00</div>
+<div><button onclick="start()">开始</button><button class="secondary" onclick="pause()">暂停</button><button class="secondary" onclick="reset()">重置</button></div>
+<p id="mode">专注中 · 25分钟</p></div>
+<script>
+let sec=25*60, timer=null, isBreak=false;
+function fmt(s){return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')}
+function tick(){ if(sec>0){sec--; document.getElementById('t').textContent=fmt(sec);} else {isBreak=!isBreak; sec=isBreak?5*60:25*60; document.getElementById('mode').textContent=isBreak?'休息一下 · 5分钟':'专注中 · 25分钟';} }
+function start(){ if(!timer) timer=setInterval(tick,1000); }
+function pause(){ clearInterval(timer); timer=null; }
+function reset(){ pause(); isBreak=false; sec=25*60; document.getElementById('t').textContent=fmt(sec); document.getElementById('mode').textContent='专注中 · 25分钟'; }
+<\/script></body></html>`;
+}
+function todoHTML(){
+return `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>
+body{font-family:sans-serif;background:#f3f4f6;display:flex;justify-content:center;padding:40px;margin:0}
+.card{background:#fff;padding:24px;border-radius:12px;width:380px;box-shadow:0 6px 20px rgba(0,0,0,.08)}
+li{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #eee;list-style:none}
+ul{padding:0;margin:12px 0}
+.done{text-decoration:line-through;color:#9ca3af}
+button{padding:8px 12px;border:none;border-radius:6px;background:#111827;color:#fff;cursor:pointer}
+input{padding:8px;border:1px solid #ddd;border-radius:6px;flex:1}
+.row{display:flex;gap:8px}
+</style></head><body><div class="card"><h2>待办清单</h2><div class="row"><input id="inp" placeholder="输入待办..."><button onclick="add()">添加</button></div><ul id="list"></ul><p id="count"></p></div>
+<script>
+function add(){const v=document.getElementById('inp').value.trim(); if(!v) return; const li=document.createElement('li'); li.innerHTML='<input type="checkbox" onclick="this.parentNode.classList.toggle(`done`);update()"> <span>'+v.replace(/</g,'&lt;')+'</span> <button onclick="this.parentNode.remove();update()" style="margin-left:auto">删</button>'; document.getElementById('list').appendChild(li); document.getElementById('inp').value=''; update();}
+function update(){document.getElementById('count').textContent='共 '+document.querySelectorAll('#list li').length+' 项';}
+<\/script></body></html>`;
+}
+function cardHTML(){
+return `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>
+body{margin:0;font-family:sans-serif;background:linear-gradient(135deg,#667eea,#764ba2);min-height:100vh;display:flex;align-items:center;justify-content:center}
+.card{background:#fff;border-radius:16px;padding:32px;text-align:center;width:320px}
+.avatar{width:80px;height:80px;border-radius:50%;background:#ddd;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-size:32px}
+button{padding:10px 20px;border:none;border-radius:8px;background:#111827;color:#fff;cursor:pointer;margin-top:12px}
+#contact{display:none;margin-top:12px;color:#4b5563}
+</style></head><body><div class="card"><div class="avatar">你</div><h2>江同学</h2><p>全栈工程师 · 上海</p><button onclick="document.getElementById('contact').style.display=document.getElementById('contact').style.display==='block'?'none':'block'">联系我</button><div id="contact">微信：demo123<br>邮箱：hello@example.com</div></div></body></html>`;
+}
+function genericHTML(prompt){
+const safe=prompt.replace(/</g,'&lt;').slice(0,60);
+return `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>
+body{font-family:sans-serif;margin:0;background:#f9fafb}.hero{background:#111827;color:#fff;padding:60px 24px;text-align:center}
+.btn{display:inline-block;margin-top:16px;padding:12px 24px;background:#fff;color:#111827;border-radius:8px;cursor:pointer;border:none}
+.card{max-width:600px;margin:24px auto;background:#fff;padding:24px;border-radius:12px}
+.faq{border-top:1px solid #eee;padding:12px 0;cursor:pointer}
+</style></head><body><div class="hero"><h1>${safe}</h1><p>这是由 Mini-Atoms 生成的交互演示页</p><button class="btn" onclick="let c=document.getElementById('c');c.textContent=parseInt(c.textContent)+1">被点了 <span id="c">0</span> 次</button></div>
+<div class="card"><div class="faq" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='block'?'none':'block'"><b>这是真实交互吗？ ▼</b></div><div style="display:none;color:#555">是的，按钮计数器和折叠都由 JS 驱动。</div>
+<div class="faq" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='block'?'none':'block'"><b>还能改吗？ ▼</b></div><div style="display:none;color:#555">回到左侧用追问修改试试。</div></div></body></html>`;
+}
+
+function mockGenerate(prompt){
+const p=prompt.toLowerCase();
+let html, title='通用应用';
+if(p.includes('番茄')||p.includes('计时')||p.includes('专注')){html=pomodoroHTML(); title='番茄钟';}
+else if(p.includes('待办')||p.includes('todo')||p.includes('清单')){html=todoHTML(); title='待办清单';}
+else if(p.includes('名片')||p.includes('个人')){html=cardHTML(); title='个人名片';}
+else {html=genericHTML(prompt); title='定制页面';}
+return {html, title};
+}
+function applyFollowUp(html, q){
+let out=html;
+if(q.includes('红色')) out=out.replaceAll('#111827','#dc2626');
+if(q.includes('配色')) out=out.replaceAll('#111827','#4f46e5').replaceAll('#667eea','#4f46e5');
+if(q.includes('深色')) out=out.replace('background:#fff','background:#111827;color:#fff').replaceAll('background:#f9fafb','background:#1f2937');
+if(q.includes('动画')) out=out.replace('</style>','*{transition:all .3s} .card{animation:fade .6s}@keyframes fade{from{opacity:0;transform:translateY(8px)}} </style>');
+if(q.includes('标题')) out=out.replace(/<h1>(.*?)<\/h1>/,'<h1>✨ $1</h1>').replace(/<h2>(.*?)<\/h2>/,'<h2>✨ $1</h2>');
+return out;
+}
+
+function render(){
+const list=document.getElementById('historyList');
+const cnt=document.getElementById('versionCount');
+cnt.textContent=versions.length?versions.length:'';
+if(!versions.length){list.innerHTML='<p class="hint">还没有版本。在上方输入一句话并点击「生成网页」。';}
+else{
+list.innerHTML=versions.map((v,i)=>{
+const cur=i===currentIdx;
+return `<div class="version ${cur?'current':''}"><span class="badge">v${i+1}</span>${cur?'<span class="badge badge-green">当前预览</span>':''}<div style="margin-top:8px">${esc(v.memo)}</div><div class="meta">${v.time}</div><div class="actions"><button data-a="preview" data-i="${i}">预览</button><button data-a="rollback" data-i="${i}" ${cur?'disabled':''}>回滚</button><button data-a="del" data-i="${i}">删除</button></div></div>`;
+}).join('');
+}
+const has=versions.length>0;
+document.getElementById('followBtn').disabled=!has;
+document.querySelectorAll('#quickChips .chip').forEach(c=>c.disabled=!has);
+document.getElementById('followHint').textContent=has?'点快捷方式或输入你的修改要求':'先生成一个网页，再对它追问修改';
+if(currentIdx>=0){
+const code=versions[currentIdx].html;
+document.getElementById('previewFrame').srcdoc=code;
+document.getElementById('codeBlock').textContent=code;
+}
+save();
+}
+list=document.getElementById('historyList');
+list.addEventListener('click',e=>{
+const b=e.target.closest('button'); if(!b) return;
+const i=parseInt(b.dataset.i); const a=b.dataset.a;
+if(a==='preview'){currentIdx=i; render();}
+if(a==='rollback'){const v=versions[i]; versions.push({html:v.html,memo:'回滚到 v'+(i+1),time:new Date().toLocaleString(),title:v.title}); currentIdx=versions.length-1; render();}
+if(a==='del'){ if(!confirm('删除这个版本？')) return; versions.splice(i,1); if(currentIdx>=versions.length) currentIdx=versions.length-1; render();}
+});
+
+document.querySelectorAll('[data-example]').forEach(b=>b.addEventListener('click',()=>{document.getElementById('promptInput').value=b.dataset.example;}));
+
+document.getElementById('generateBtn').addEventListener('click',()=>{
+const p=document.getElementById('promptInput').value.trim();
+if(!p){alert('先输入一句话');return;}
+const prog=document.getElementById('progress'); prog.style.display='block';
+const steps=['理解需求中...','生成代码中...','渲染预览中...']; let s=0;
+document.getElementById('generateBtn').disabled=true;
+prog.textContent=steps[0];
+const iv=setInterval(()=>{
+s++;
+if(s<steps.length){prog.textContent=steps[s];}
+else{
+clearInterval(iv);
+const r=mockGenerate(p);
+versions.push({html:r.html,memo:'生成 '+r.title+'：'+p.slice(0,24),time:new Date().toLocaleString(),title:r.title});
+currentIdx=versions.length-1;
+prog.style.display='none';
+document.getElementById('generateBtn').disabled=false;
+render();
+}
+},600);
+});
+
+function doFollow(q){
+if(currentIdx<0) return;
+const cur=versions[currentIdx].html;
+const patched=applyFollowUp(cur,q);
+versions.push({html:patched,memo:'追问：'+q.slice(0,24),time:new Date().toLocaleString(),title:versions[currentIdx].title});
+currentIdx=versions.length-1;
+document.getElementById('followInput').value='';
+render();
+}
+document.getElementById('followBtn').addEventListener('click',()=>{
+const q=document.getElementById('followInput').value.trim();
+if(!q) return; doFollow(q);
+});
+document.querySelectorAll('#quickChips .chip').forEach(c=>c.addEventListener('click',()=>{doFollow(c.dataset.q);}));
+
+document.querySelectorAll('.tabs button[data-tab]').forEach(b=>b.addEventListener('click',()=>{
+document.querySelectorAll('.tabs button[data-tab]').forEach(x=>x.classList.remove('active'));
+b.classList.add('active');
+const t=b.dataset.tab;
+document.getElementById('previewPane').style.display=t==='preview'?'block':'none';
+document.getElementById('codePane').style.display=t==='code'?'block':'none';
+}));
+
+document.getElementById('copyBtn').addEventListener('click',async()=>{
+if(currentIdx<0){alert('先生成一个网页');return;}
+try{await navigator.clipboard.writeText(versions[currentIdx].html); alert('已复制');}catch(e){alert('复制失败，请手动选择代码复制');}
+});
+document.getElementById('downloadBtn').addEventListener('click',()=>{
+if(currentIdx<0){alert('先生成一个网页');return;}
+const blob=new Blob([versions[currentIdx].html],{type:'text/html'});
+const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='mini-atoms-app.html'; a.click();
+});
+
+load(); render();
+</script>
+</body>
+</html>
